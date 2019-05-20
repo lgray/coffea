@@ -14,10 +14,10 @@ class lookup_base(object):
         # Alternatively we can just use starts and stops
         for i in range(len(inputs)):
             if isinstance(inputs[i], awkward.JaggedArray):
-                if offsets is not None and offsets.base is not inputs[i].offsets.base:
+                if offsets is not None and np.any(offsets != inputs[i].offsets):                    
                     if type(offsets) is int:
                         raise Exception('Do not mix JaggedArrays and numpy arrays when calling derived class of lookup_base')
-                    elif type(offsets) is np.ndarray and offsets.base is not inputs[i].offsets.base:
+                    elif type(offsets) is np.ndarray and np.any(offsets != inputs[i].offsets):
                         raise Exception('All input jagged arrays must have a common structure (offsets)!')
                 offsets = inputs[i].offsets
                 inputs[i] = inputs[i].content
