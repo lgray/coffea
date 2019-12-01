@@ -8,27 +8,16 @@ def coffea_udf(dataset, {% for col in cols %}{{col}}{{ "," if not loop.last }}{%
     columns = [{% for col in cols %}{{col}}{{ "," if not loop.last }}{% endfor %}]
     names = [{% for col in cols %}{{"'"|safe+col+"'"|safe}}{{ "," if not loop.last }}{% endfor %}]
 
-    size = dataset.size
+    size = len(dataset)
     items = {}
 
-    offsets_store = {}
-
     for i, col in enumerate(columns):
-        #numpy array
-        if columns[i].array[0].base is None:
-            items[names[i]] = columns[i].values
-        else:
-            prefix = names[i].split('_')[0] # this is specific to nanoaod, sadness            
-            if prefix not in offsets_store.keys():
-                counts = columns[i].str.len().values
-                offsets_store[prefix] = np.zeros(shape=(counts.size + 1, ), dtype=np.int64)
-                offsets_store[prefix][1:] = np.cumsum(counts)
-            offsets = offsets_store[prefix]
-            contents = columns[i].array[0].base
-            items[names[i]] = awkward.JaggedArray.fromoffsets(offsets, contents)
+        if col.num_chunks != 1:
+            raise Exception('Number of chunks for', names[i], 'is not 1!')
+        items[names[i]] = awkward.fromarrow(col.chunk(0))        
 
     df = processor.PreloadedDataFrame(size=size, items=items)
-    df['dataset'] = dataset[0]
+    df['dataset'] = dataset.chunk(0)[0].as_py()
     
     vals = processor_instance.process(df)
     
@@ -47,18 +36,16 @@ def coffea_udf_flat(dataset, {% for col in cols %}{{col}}{{ "," if not loop.last
     columns = [{% for col in cols %}{{col}}{{ "," if not loop.last }}{% endfor %}]
     names = [{% for col in cols %}{{"'"|safe+col+"'"|safe}}{{ "," if not loop.last }}{% endfor %}]
 
-    size = dataset.size
+    size = len(dataset)
     items = {}
 
     for i, col in enumerate(columns):
-        #numpy array
-        if columns[i].array[0].base is None:
-            items[names[i]] = columns[i].values
-        else:
-            items[names[i]] = columns[i].array[0].base
+        if col.num_chunks != 1:
+            raise Exception('Number of chunks for', names[i], 'is not 1!')        
+        items[names[i]] = col.chunk(0).values
 
     df = processor.PreloadedDataFrame(size=size, items=items)
-    df['dataset'] = dataset[0]
+    df['dataset'] = dataset.chunk(0)[0].as_py()
     
     vals = processor_instance.process(df)
     
