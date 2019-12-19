@@ -48,7 +48,7 @@ def _spark_initialize(config=_default_config, **kwargs):
     return session
 
 
-def _read_df(spark, dataset, files_or_dirs, ana_cols, partitionsize, file_type, treeName):
+def _read_df(spark, dataset, files_or_dirs, ana_cols, partitionsize, file_type, treeName, alter_df):
     flist = files_or_dirs
     tname = treeName
     if isinstance(files_or_dirs, dict):
@@ -64,7 +64,7 @@ def _read_df(spark, dataset, files_or_dirs, ana_cols, partitionsize, file_type, 
 
     df_cols = set(df.columns)
     cols_in_df = ana_cols.intersection(df_cols)
-    df = df.select(*cols_in_df)
+    df = alter_df(df.select(*cols_in_df))
     missing_cols = ana_cols - cols_in_df
     for missing in missing_cols:
         df = df.withColumn(missing, fn.lit(0.0))
@@ -78,14 +78,19 @@ def _read_df(spark, dataset, files_or_dirs, ana_cols, partitionsize, file_type, 
     npartitions = (count // partitionsize) + 1
     actual_partitions = df.rdd.getNumPartitions()
     avg_counts = count / actual_partitions
-    if actual_partitions > 1.50 * npartitions or avg_counts > partitionsize:
+    if actual_partitions > 1.50 * npartitions:
+        if 'root' in file_type:
+            df = df.coalesce(npartitions)
+        else:
+            df = df.repartition(npartitions)
+    elif avg_counts > 1.25 * partitionsize:
         df = df.repartition(npartitions)
 
     return df, dataset, count
 
 
 def _spark_make_dfs(spark, fileset, partitionsize, columns, thread_workers, file_type,
-                    treeName, status=True):
+                    treeName, alter_df, status=True):
     dfs = {}
     ana_cols = set(columns)
 
@@ -96,7 +101,7 @@ def _spark_make_dfs(spark, fileset, partitionsize, columns, thread_workers, file
     with ThreadPoolExecutor(max_workers=thread_workers) as executor:
         futures = set(executor.submit(_read_df, spark, ds, files,
                                       ana_cols, partitionsize, file_type,
-                                      treeName) for ds, files in fileset.items())
+                                      treeName, alter_df) for ds, files in fileset.items())
 
         _futures_handler(futures, dfs, status, 'datasets', 'loading', dfs_accumulator, None)
 

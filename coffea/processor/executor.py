@@ -867,7 +867,7 @@ def run_spark_job(fileset, processor_instance, executor, executor_args={},
             warnings.warn('If you are using pyarrow >= 0.15.0, make sure to set %s=%s in your environment!' % arrow_env)
 
     import pyspark.sql
-    from .spark.spark_executor import SparkExecutor
+    from .spark.spark_executor import SparkExecutor, df_noop
     from .spark.detail import _spark_initialize, _spark_stop, _spark_make_dfs
 
     if not isinstance(fileset, Mapping):
@@ -886,10 +886,12 @@ def run_spark_job(fileset, processor_instance, executor, executor_args={},
     executor_args.setdefault('skipbadfiles', False)
     executor_args.setdefault('retries', 0)
     executor_args.setdefault('xrootdtimeout', None)
+    executor_args.setdefault('df_xform', df_noop)
     file_type = executor_args['file_type']
     treeName = executor_args['treeName']
     flatten = executor_args['flatten']
     use_cache = executor_args['cache']
+    df_xform = executor_args['df_xform']
 
     if executor_args['config'] is None:
         executor_args.pop('config')
@@ -909,7 +911,7 @@ def run_spark_job(fileset, processor_instance, executor, executor_args={},
     dfslist = {}
     if executor._cacheddfs is None:
         dfslist = _spark_make_dfs(spark, fileset, partitionsize, processor_instance.columns,
-                                  thread_workers, file_type, treeName)
+                                  thread_workers, file_type, treeName, df_xform)
 
     output = processor_instance.accumulator.identity()
     executor(spark, dfslist, processor_instance, output, thread_workers, use_cache, flatten)

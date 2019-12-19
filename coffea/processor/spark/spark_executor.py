@@ -23,8 +23,8 @@ lz4_clevel = 1
 # this is a UDF that takes care of summing histograms across
 # various spark results where the outputs are histogram blobs
 def agg_histos_raw(arrow, processor_instance, lz4_clevel):
-    series = arrow.to_pandas()
-    goodlines = series[series.str.len() > 0]
+    series = awkward.fromarrow(arrow)
+    goodlines = series[series.counts > 0]
     if goodlines.size == 1:  # short-circuit trivial aggregations
         return goodlines[0]
     outhist = processor_instance.accumulator.identity()
@@ -40,18 +40,22 @@ def agg_histos(arrow):
 
 
 def reduce_histos_raw(arrow_df, processor_instance, lz4_clevel):
-    histos = arrow_df.column('histos').to_pandas()
-    mask = (histos.str.len() > 0)
+    histos = awkward.fromarrow(arrow_df.column('histos').chunk(0))
+    mask = (histos.counts > 0)
     outhist = processor_instance.accumulator.identity()
     for line in histos[mask]:
         outhist.add(pkl.loads(lz4f.decompress(line)))
     return pd.DataFrame(data={'histos': np.array([lz4f.compress(pkl.dumps(outhist), compression_level=lz4_clevel)], dtype='O')})
 
 
-@fn.pandas_udf(StructType([StructField('histos', BinaryType(), True)]), fn.PandasUDFType.GROUPED_MAP)
+@fn.pandas_udf(StructType([StructField('histos', BinaryType(), False)]), fn.PandasUDFType.GROUPED_MAP)
 def reduce_histos(arrow_df):
     global processor_instance, lz4_clevel
     return reduce_histos_raw(arrow_df, processor_instance, lz4_clevel)
+
+
+def df_noop(df):
+    return df
 
 
 class SparkExecutor(object):

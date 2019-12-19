@@ -67,6 +67,7 @@ def test_spark_hist_adders():
     pyspark = pytest.importorskip("pyspark", minversion="2.4.1")
     
     import pandas as pd
+    import pyarrow as pa
     import pickle as pkl
     import lz4.frame as lz4f
 
@@ -83,11 +84,11 @@ def test_spark_hist_adders():
     harray1 = np.array(hlist1, dtype='O')
     harray2 = np.array(hlist2, dtype='O')
     
-    series1 = pd.Series(harray1)
-    series2 = pd.Series(harray2)
+    series1 = pa.Array.from_pandas(pd.Series(harray1))
+    series2 = pa.Array.from_pandas(pd.Series(harray2))
     df = pd.DataFrame({'histos': harray2})
 
     # correctness of these functions is checked in test_spark_executor
     agg1 = agg_histos_raw(series1, proc, 1)
     agg2 = agg_histos_raw(series2, proc, 1)
-    red = reduce_histos_raw(df, proc, 1)
+    red = reduce_histos_raw(pa.Table.from_pandas(df), proc, 1)
