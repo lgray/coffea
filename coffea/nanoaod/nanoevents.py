@@ -247,6 +247,8 @@ class NanoEvents(awkward.Table):
                 pass
             elif isinstance(arrays[k], numpy.ndarray):
                 value = arrays[k]
+                print(k, '->', arrays[k])
+                print(k, 'dtype ->', arrays[k].dtype)
                 arrays[k] = awkward.VirtualArray(lambda: value, type=awkward.type.ArrayType(len(arrays[k]), arrays[k].dtype))
                 print(arrays[k])
             else:
