@@ -48,6 +48,8 @@ def coffea_udf_nano(dataset, {% for col in cols %}{{col}}{{ "," if not loop.last
     size = dataset.size
     items = {}
 
+    extra_methods = {'AK15Puppi': LorentzVector, 'AK15PuppiSubJet': LorentzVector}
+
     for i, col in enumerate(columns):
         # numpy array
         if columns[i].array[0].base is None:
@@ -56,7 +58,7 @@ def coffea_udf_nano(dataset, {% for col in cols %}{{col}}{{ "," if not loop.last
             items[names[i]] = np.squeeze(columns[i].array[0].base)
 
     metadata = {'dataset': dataset[0]}
-    df = NanoEvents.from_arrays(arrays=items, metadata=metadata)
+    df = NanoEvents.from_arrays(arrays=items, metadata=metadata, methods=extra_methods)
     
     vals = processor_instance.process(df)
     
