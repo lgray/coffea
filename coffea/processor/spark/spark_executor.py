@@ -11,6 +11,7 @@ from functools import partial
 
 from ..executor import _futures_handler
 from coffea.nanoaod import NanoEvents
+from coffea.nanoaod.methods import LorentzVector
 
 import pyspark
 import pyspark.sql.functions as fn
