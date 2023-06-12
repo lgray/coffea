@@ -362,6 +362,11 @@ class ExecutorBase:
         return type(self)(**tmp)
 
 
+@dataclass
+class DaskExecutorBase(ExecutorBase):
+    pass
+
+
 def _watcher(
     FH: _FuturesHolder,
     executor: ExecutorBase,
@@ -1764,6 +1769,8 @@ class Runner:
             processor_instance : ProcessorABC
                 An instance of a class deriving from ProcessorABC
         """
+        if isinstance(self.executor, DaskExecutorBase):
+            return self.run_dask(fileset, processor_instance, treename)
 
         wrapped_out = self.run(fileset, processor_instance, treename)
         if self.use_dataframes:
@@ -1818,6 +1825,32 @@ class Runner:
             fileset.reverse()
 
         return self._chunk_generator(fileset, treename)
+
+    def run_dask(
+        self,
+        fileset: Union[Dict, str, List[WorkItem], Generator],
+        processor_instance: ProcessorABC,
+        treename: str = None,
+    ) -> Accumulatable:
+        """Run the processor_instance on a given fileset
+
+        Parameters
+        ----------
+            fileset : dict | str | List[WorkItem] | Generator
+                - A dictionary ``{dataset: [file, file], }``
+                  Optionally, if some files' tree name differ, the dictionary can be specified:
+                  ``{dataset: {'treename': 'name', 'files': [file, file]}, }``
+                - A single file name
+                - File chunks for self.preprocess()
+                - Chunk generator
+            treename : str, optional
+                name of tree inside each root file, can be ``None``;
+                treename can also be defined in fileset, which will override the passed treename
+                Not needed if processing premade chunks
+            processor_instance : ProcessorABC
+                An instance of a class deriving from ProcessorABC
+        """
+        pass
 
     def run(
         self,
